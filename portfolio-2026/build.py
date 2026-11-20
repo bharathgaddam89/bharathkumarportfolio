@@ -125,4 +125,15 @@ shutil.copytree(ROOT / 'img', DIST / 'img')
 (DIST / '_redirects').write_text(''.join(f'{a} {b} 301\n' for a, b in REDIRECTS.items()) + '/admin /admin/ 301\n')
 (DIST / 'robots.txt').write_text('User-agent: *\nDisallow: /admin/\n')
 
+# ---- single-file builds ----
+(ROOT / 'index.html').write_text(page(FONTS, LIBS))
+NM = 'file:///home/claude/preview/node_modules'
+local_fonts = f'''<style>
+@font-face{{font-family:'Instrument Sans';src:url({NM}/@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2) format('woff2');font-weight:400}}
+@font-face{{font-family:'Instrument Sans';src:url({NM}/@fontsource/instrument-sans/files/instrument-sans-latin-500-normal.woff2) format('woff2');font-weight:500}}
+@font-face{{font-family:'Instrument Sans';src:url({NM}/@fontsource/instrument-sans/files/instrument-sans-latin-600-normal.woff2) format('woff2');font-weight:600}}
+</style>'''
+local_libs = [f'{NM}/gsap/dist/gsap.min.js', f'{NM}/gsap/dist/ScrollTrigger.min.js', f'{NM}/lenis/dist/lenis.min.js']
+(ROOT / 'preview.html').write_text(page(local_fonts, local_libs, with_cms=False))
+(ROOT / 'admin-preview.html').write_text(ADMIN.replace(FONTS, local_fonts).replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js', 'file:///home/claude/site2/test/sb-stub.js'))
 print('built', len((DIST / 'index.html').read_text()) // 1024, 'KB site,', len(ADMIN) // 1024, 'KB editor')

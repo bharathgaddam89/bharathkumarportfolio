@@ -29,7 +29,7 @@
   var fine = window.matchMedia('(pointer: fine)').matches;
   var G = window.gsap, ST = window.ScrollTrigger;
   var hasG = !!(G && ST);
-  if (hasG) G.registerPlugin(ST);
+  if (hasG) { G.registerPlugin(ST); ST.config({ ignoreMobileResize: true }); }
   if (reduce) document.documentElement.classList.add('no-motion');
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var mod = function (n, m) { return ((n % m) + m) % m; };
@@ -283,7 +283,7 @@
     reel.innerHTML = SITE.REEL.map(function (s, i) {
       var inner = s.phones ? '<div class="reel__media" style="background:' + s.bg + '">' + phones(s.phones) + '</div>' : '<div class="reel__media">' + img(s.img, s.cap) + '</div>';
       if (s.contain) inner = img(s.img, s.cap);
-      return '<figure class="reel__slide' + (s.contain ? ' contain' : '') + (i === 0 ? ' is-on' : '') + '" data-cap="' + esc(s.cap) + '">' + inner + '</figure>';
+      return '<figure class="reel__slide' + (s.contain ? ' contain' : '') + (i === 0 ? ' is-on' : '') + '"' + (s.contain && s.bg ? ' style="--slide-bg:' + esc(s.bg) + '"' : '') + ' data-cap="' + esc(s.cap) + '">' + inner + '</figure>';
     }).join('') +
       '<div class="reel__ui"><div><p class="label light">Showreel 2026</p><p class="reel__cap" aria-live="polite">' + esc(SITE.REEL[0].cap) + '</p><div class="reel__bars">' +
       SITE.REEL.map(function (s, i) { return '<button type="button" aria-label="Show slide ' + (i + 1) + ': ' + esc(s.cap) + '"><i></i></button>'; }).join('') +
@@ -356,7 +356,8 @@
         if (!list.length) return '';
         return '<span class="pill' + (wide ? ' pill--wide' : '') + '" data-rotate>' + list.map(function (k, i) { return img(k, '', ' loading="eager"' + (i === 0 ? ' class="on"' : '')); }).join('') + '</span>';
       };
-      var line = function (t) { return esc(t || '').replace('{1}', pill(P.pills1)).replace('{2}', pill(P.pills2, true)); };
+      var glue = function (t, tok, html) { if (!html) return t.replace(tok, ''); var re = new RegExp('(\\S+)\\s+' + tok.replace(/[{}]/g, '\\$&')); return re.test(t) ? t.replace(re, '<span class="nw">$1 ' + html + '</span>') : t.replace(tok, html); };
+      var line = function (t) { return glue(glue(esc(t || ''), '{1}', pill(P.pills1)), '{2}', pill(P.pills2, true)); };
       hero.innerHTML = '<span class="line">' + line(P.heroLine1) + '</span>' + (P.heroLine2 ? '<span class="line">' + line(P.heroLine2) + '</span>' : '');
     }
     if (P.heroBio) $('[data-herobio]').innerHTML = esc(P.heroBio).replace('{name}', '<strong>' + esc(P.name || '') + '</strong>');
@@ -456,7 +457,7 @@
   function layoutRing() {
     var el = $('[data-ring]'); if (!el) return;
     var cards = $$('.rcard', el), n = cards.length, vw = window.innerWidth;
-    var w = vw < 700 ? Math.round(vw * 0.3) : clamp(Math.round(vw * 0.14), 150, 230);
+    var w = vw < 700 ? Math.round(vw * 0.27) : clamp(Math.round(vw * 0.14), 150, 230);
     var gapR = Math.round(w * 0.14);
     var R = Math.max(w, Math.round(((w + gapR) * n) / (2 * Math.PI)));
     ring.R = R;
@@ -521,8 +522,15 @@
       });
 
       /* ring: pinned spin */
-      ST.create({ trigger: '[data-ring-sec]', start: 'top top', end: '+=160%', pin: true, scrub: true, anticipatePin: 1,
-        onUpdate: function (s) { ring.target = -s.progress * 320; ring.ty = 0; } });
+      mm.add('(min-width: 901px)', function () {
+        ST.create({ trigger: '[data-ring-sec]', start: 'top top', end: '+=160%', pin: true, scrub: true, anticipatePin: 1,
+          onUpdate: function (s) { ring.target = -s.progress * 320; ring.ty = 0; } });
+      });
+      /* phones: no pinning (it fights touch scrolling); the ring turns as the section scrolls past */
+      mm.add('(max-width: 900px)', function () {
+        ST.create({ trigger: '[data-ring-sec]', start: 'top bottom', end: 'bottom top', scrub: true,
+          onUpdate: function (s) { ring.target = -s.progress * 200; ring.ty = 0; } });
+      });
       G.from('.ring-stage', { opacity: 0, scale: 0.82, y: 90, duration: 1.6, ease: 'expo.out', scrollTrigger: { trigger: '[data-ring-sec]', start: 'top 70%', once: true } });
       G.fromTo('.ring-title', { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, ease: 'none', scrollTrigger: { trigger: '[data-ring-sec]', start: 'top bottom', end: 'top top', scrub: true } });
 
@@ -685,7 +693,7 @@
     if (galMode === 'canvas') {
       h += '<div class="gcanvas" tabindex="0" data-lenis-prevent data-cursor="Drag" aria-label="Gallery canvas. Drag, scroll or use the arrow keys to explore. Switch to Grid for a list."><div class="gworld"></div>' +
         '<div class="gover"><div><p class="label light" style="margin-bottom:10px">(02) Gallery</p><h1 class="gtitle" data-cs-title>Gallery<span class="count">(' + n + ')</span></h1></div>' +
-        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:14px"><p class="ghint"><svg aria-hidden="true"><use href="#i-drag"></use></svg>Drag, scroll or use arrow keys</p>' + modes + '</div></div></div>';
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:14px"><p class="ghint"><svg aria-hidden="true"><use href="#i-drag"></use></svg>' + (fine ? 'Drag, scroll or use arrow keys' : 'Drag to explore') + '</p>' + modes + '</div></div></div>';
     } else {
       var count = function (c) { return c === 'All' ? n : G2.filter(function (g) { return g[2] === c; }).length; };
       h += '<section class="ggrid wrap" aria-labelledby="gal-title"><div class="ggrid__head"><div><p class="label light" style="margin-bottom:14px">(02) Gallery</p><h1 class="gtitle" id="gal-title" data-cs-title>Gallery<span class="count">(' + n + ')</span></h1></div>' + modes + '</div>' +
